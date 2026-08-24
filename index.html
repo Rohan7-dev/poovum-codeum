@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Poovum Codeum – Interactive Pookalam Designer</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: radial-gradient(circle at top, #2c1a0e 0%, #120a05 100%);
+    color: #fff3e0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px 12px;
+    touch-action: manipulation;
+  }
+  h1 {
+    margin: 6px 0 4px;
+    font-size: 2rem;
+    text-align: center;
+    background: linear-gradient(90deg, #ff9800, #e91e63, #ffc107);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    letter-spacing: 0.5px;
+  }
+  p.sub { margin: 0 0 16px; opacity: 0.85; font-size: 0.95rem; text-align: center; }
+
+  .layout {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    justify-content: center;
+    width: 100%;
+    max-width: 1100px;
+  }
+
+  #canvasWrap {
+    background: radial-gradient(circle, #1e1410 0%, #0a0604 100%);
+    border-radius: 20px;
+    padding: 12px;
+    box-shadow: 0 8px 32px rgba(255,152,0,0.15), inset 0 0 20px rgba(0,0,0,0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    max-width: 500px;
+    position: relative;
+    user-select: none;
+  }
+
+  svg#canvas {
+    display: block;
+    width: 100%;
+    height: auto;
+    max-width: 480px;
+    touch-action: none;
+  }
+
+  .ring-slot {
+    cursor: pointer;
+    transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    outline: none;
+  }
+  .ring-slot:hover, .ring-slot:focus-visible { transform: scale(1.3); }
+  .ring-slot.dragging { opacity: 0.4; }
+
+  .ring-group {
+    transform-origin: 240px 240px;
+  }
+  .ring-group.spin-cw { animation: spinCW linear infinite; }
+  .ring-group.spin-ccw { animation: spinCCW linear infinite; }
+  .ring-group.paused { animation-play-state: paused; }
+
+  @keyframes spinCW { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  @keyframes spinCCW { from { transform: rotate(0deg); } to { transform: rotate(-360deg); } }
+
+  @keyframes popIn {
+    0% { transform: scale(0); opacity: 0; }
+    60% { transform: scale(1.35); opacity: 1; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  .just-placed { animation: popIn 0.35s ease-out; }
+
+  .panel {
+    background: #1e1410;
+    border-radius: 18px;
+    padding: 20px;
+    width: 100%;
+    max-width: 320px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+    border: 1px solid rgba(255,152,0,0.15);
+  }
+  .panel h3 {
+    margin: 0 0 10px;
+    font-size: 0.85rem;
+    color: #ffc107;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .swatches {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .swatch {
+    width: 100%; aspect-ratio: 1;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 3px solid transparent;
+    transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
+    outline: none;
+  }
+  .swatch:hover, .swatch:focus-visible { transform: scale(1.12); }
+  .swatch.active { border-color: #ffffff; transform: scale(1.18); box-shadow: 0 0 12px rgba(255,255,255,0.4); }
+
+  .motifs {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .motif-btn {
+    background: #2a1d16;
+    border: 2px solid transparent;
+    border-radius: 10px;
+    cursor: pointer;
+    padding: 4px;
+    transition: all 0.2s;
+    outline: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .motif-btn:hover, .motif-btn:focus-visible { background: #3a2a20; transform: translateY(-2deg); }
+  .motif-btn.active { border-color: #ffc107; background: #3a2a20; box-shadow: 0 0 10px rgba(255,193,7,0.2); }
+  .motif-btn svg { width: 100%; height: 38px; }
+
+  .controls-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  .toggle-btn {
+    background: #2a1d16;
+    border: 1px solid #5c4a3a;
+    color: #ffd699;
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: all 0.2s;
+    outline: none;
+  }
+  .toggle-btn.active { background: #ff9800; color: #120a05; border-color: #ff9800; }
+  .toggle-btn:hover, .toggle-btn:focus-visible { filter: brightness(1.15); }
+
+  button.action {
+    width: 100%;
+    padding: 10px 12px;
+    margin-top: 8px;
+    border: none;
+    border-radius: 10px;
+    font-weight: 700;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: transform 0.1s, filter 0.2s, box-shadow 0.2s;
+    outline: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+  button.action:active { transform: scale(0.97); }
+  button.action:hover, button.action:focus-visible { filter: brightness(1.12); }
+
+  .btn-bloom { background: linear-gradient(90deg, #ff9800, #e91e63); color: white; box-shadow: 0 4px 15px rgba(233,30,99,0.3); }
+  .btn-clear { background: #3a2a20; color: #ffd699; }
+  .btn-export { background: #4caf50; color: white; box-shadow: 0 4px 15px rgba(76,175,80,0.3); }
+  .btn-undo { background: #3a4a5a; color: #cfe8ff; }
+  .btn-json { background: #6a1b9a; color: white; box-shadow: 0 4px 12px rgba(106,27,154,0.3); }
+
+  .drag-ghost {
+    position: fixed;
+    pointer-events: none;
+    z-index: 1000;
+    transform: translate(-50%, -50%);
+    opacity: 0.85;
+    filter: drop-shadow(0 6px 12px rgba(0,0,0,0.5));
+  }
+
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: #2a1d16;
+    border: 1px solid #ffc107;
+    color: #fff3e0;
+    padding: 10px 20px;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s, transform 0.25s;
+    z-index: 100;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  footer { margin-top: 24px; opacity: 0.6; font-size: 0.8rem; text-align: center; }
+</style>
+</head>
+<body>
+
+<h1>🌸 Poovum Codeum 🌸</h1>
+<p class="sub">Click or drag flowers to arrange your Pookalam — auto-rotating concentric rings</p>
+
+<div class="layout">
+  <div id="canvasWrap">
+    <svg id="canvas" viewBox="0 0 480 480" aria-label="Interactive Pookalam Canvas" role="region"></svg>
+  </div>
+
+  <div class="panel">
+    <h3>🎨 Palette</h3>
+    <div class="swatches" id="swatches" role="radiogroup" aria-label="Color Palette"></div>
+
+    <h3>🌺 Flower Motif</h3>
+    <div class="motifs" id="motifs" role="radiogroup" aria-label="Motif Selection"></div>
+
+    <h3>⚡ Helpers & Controls</h3>
+    <div class="controls-grid">
+      <button class="toggle-btn active" id="toggleSymmetry" aria-pressed="true">✨ Symmetry: Ring</button>
+      <button class="toggle-btn" id="toggleSpin" aria-pressed="true">⏸️ Pause Spin</button>
+    </div>
+
+    <button class="action btn-bloom" id="randomize" aria-label="Randomize Bloom">✨ Randomize Design</button>
+    <div class="controls-grid" style="margin-top: 8px;">
+      <button class="action btn-undo" id="undo" aria-label="Undo last placement" style="margin:0;">↩️ Undo</button>
+      <button class="action btn-clear" id="clearAll" aria-label="Clear entire pookalam" style="margin:0;">🧹 Clear</button>
+    </div>
+
+    <div class="controls-grid" style="margin-top: 8px;">
+      <button class="action btn-json" id="saveJson" aria-label="Save design as JSON file" style="margin:0;">💾 Save JSON</button>
+      <button class="action btn-json" id="loadJsonBtn" aria-label="Load design from JSON file" style="margin:0;">📂 Load JSON</button>
+      <input type="file" id="loadJsonInput" accept=".json" style="display:none;" />
+    </div>
+
+    <button class="action btn-export" id="exportPng" aria-label="Export design as PNG image">⬇️ Export PNG Image</button>
+  </div>
+</div>
+
+<footer>Made for ISTE SB NSSCE CSE — Poovum Codeum, Onam 2026</footer>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+const NS = "http://www.w3.org/2000/svg";
+const svg = document.getElementById('canvas');
+const CX = 240, CY = 240;
+
+// Onam-authentic palette
+const palette = ["#e53935","#fb8c00","#fdd835","#8e24aa","#ffffff","#43a047","#f4511e","#d81b60"];
+let currentColor = palette[0];
+
+const swatchWrap = document.getElementById('swatches');
+palette.forEach((c, i) => {
+  const s = document.createElement('div');
+  s.className = 'swatch' + (i === 0 ? ' active' : '');
+  s.style.background = c;
+  s.setAttribute('role', 'radio');
+  s.setAttribute('aria-checked', i === 0 ? 'true' : 'false');
+  s.setAttribute('tabindex', '0');
+  s.setAttribute('aria-label', `Color ${c}`);
+  
+  const selectColor = () => {
+    currentColor = c;
+    document.querySelectorAll('.swatch').forEach(el => {
+      el.classList.remove('active');
+      el.setAttribute('aria-checked', 'false');
+    });
+    s.classList.add('active');
+    s.setAttribute('aria-checked', 'true');
+  };
+  s.onclick = selectColor;
+  s.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { selectColor(); e.preventDefault(); } };
+  swatchWrap.appendChild(s);
+});
+
+// Motif shapes with rich multi-layered SVG paths
+const motifShapes = [
+  { name: 'petal', label: 'Petal', build: (color) => `<path d="M0,-26 C10,-14 10,-2 0,0 C-10,-2 -10,-14 0,-26 Z" fill="${color}"/><path d="M0,-24 C3,-14 3,-4 0,0" fill="none" stroke="rgba(0,0,0,0.2)" stroke-width="1.2"/>` },
+  { name: 'round', label: 'Round', build: (color) => `<circle cx="0" cy="-14" r="10" fill="${color}"/><circle cx="-3" cy="-17" r="3" fill="rgba(255,255,255,0.4)"/><circle cx="0" cy="-14" r="5" fill="none" stroke="rgba(0,0,0,0.15)" stroke-width="1"/>` },
+  { name: 'star', label: 'Star', build: (color) => {
+      let pts = []; for(let i=0; i<5; i++){ const a = -Math.PI/2 + i*(2*Math.PI/5); const r1=13, r2=6;
+        pts.push([Math.cos(a)*r1, -14+Math.sin(a)*r1]);
+        const a2 = a + Math.PI/5; pts.push([Math.cos(a2)*r2, -14+Math.sin(a2)*r2]); }
+      return `<polygon points="${pts.map(p=>p.join(',')).join(' ')}" fill="${color}"/><circle cx="0" cy="-14" r="3" fill="rgba(0,0,0,0.25)"/>`;
+    }},
+  { name: 'leaf', label: 'Leaf', build: (color) => `<path d="M0,-4 Q-14,-16 0,-30 Q14,-16 0,-4 Z" fill="${color}"/><line x1="0" y1="-4" x2="0" y2="-28" stroke="rgba(0,0,0,0.25)" stroke-width="1.5"/><path d="M0,-18 L-5,-22 M0,-12 L5,-16 M0,-8 L-4,-11" stroke="rgba(0,0,0,0.2)" stroke-width="1"/>` },
+  { name: 'lotus', label: 'Lotus', build: (color) => `<path d="M0,-28 C12,-20 14,-8 0,0 C-14,-8 -12,-20 0,-28 Z" fill="${color}"/><path d="M-8,-22 C-14,-12 -8,-4 0,0 C-4,-8 -6,-18 -8,-22 Z" fill="rgba(255,255,255,0.3)"/><path d="M8,-22 C14,-12 8,-4 0,0 C4,-8 6,-18 8,-22 Z" fill="rgba(0,0,0,0.15)"/><circle cx="0" cy="-10" r="3.5" fill="#fdd835"/>` },
+  { name: 'marigold', label: 'Marigold', build: (color) => `<path d="M0,-26 Q-6,-22 -8,-14 Q-14,-14 -14,-8 Q-14,-2 -8,-2 Q-8,4 0,4 Q8,4 8,-2 Q14,-2 14,-8 Q14,-14 8,-14 Q6,-22 0,-26 Z" fill="${color}" transform="translate(0,-6)"/><circle cx="0" cy="-14" r="8" fill="rgba(255,255,255,0.25)"/><circle cx="0" cy="-14" r="5" fill="rgba(0,0,0,0.2)"/><circle cx="0" cy="-14" r="2" fill="#ffe082"/>` },
+  { name: 'mango', label: 'Mango Paisley', build: (color) => `<path d="M0,-4 C-12,-4 -14,-16 -4,-26 C0,-30 6,-30 4,-24 C2,-18 10,-14 6,-6 C4,-4 2,-4 0,-4 Z" fill="${color}"/><path d="M-1,-8 C-7,-8 -8,-16 -2,-22 C1,-25 4,-25 3,-20 C2,-16 7,-13 4,-8 Z" fill="rgba(255,255,255,0.3)"/>` }
+];
+
+let currentMotif = 0;
+
+const motifWrap = document.getElementById('motifs');
+motifShapes.forEach((m, i) => {
+  const b = document.createElement('div');
+  b.className = 'motif-btn' + (i === 0 ? ' active' : '');
+  b.setAttribute('role', 'radio');
+  b.setAttribute('aria-checked', i === 0 ? 'true' : 'false');
+  b.setAttribute('tabindex', '0');
+  b.setAttribute('aria-label', `Motif ${m.label}`);
+
+  const s = document.createElementNS(NS, 'svg');
+  s.setAttribute('viewBox', '-18 -32 36 36');
+  s.innerHTML = m.build('#ffc107');
+  b.appendChild(s);
+
+  const selectMotif = () => {
+    currentMotif = i;
+    document.querySelectorAll('.motif-btn').forEach(el => {
+      el.classList.remove('active');
+      el.setAttribute('aria-checked', 'false');
+    });
+    b.classList.add('active');
+    b.setAttribute('aria-checked', 'true');
+  };
+  b.onclick = selectMotif;
+  b.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { selectMotif(); e.preventDefault(); } };
+  motifWrap.appendChild(b);
+});
+
+// Ring config: [radius, count]
+const rings = [
+  [45, 10],
+  [90, 20],
+  [135, 30],
+  [180, 40],
+  [225, 50]
+];
+
+let slotState = {};
+let history = [];
+let lastPlacedKey = null;
+let spinning = true;
+let symmetryMode = true;
+const ringDurations = [0, 40, 55, 75, 95];
+
+function snapshot() {
+  history.push(JSON.stringify(slotState));
+  if (history.length > 35) history.shift();
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(showToast._timer);
+  showToast._timer = setTimeout(() => t.classList.remove('show'), 1400);
+}
+
+// Drag & Drop State
+let dragData = null;
+let ghostElem = null;
+
+function applySlotAction(key) {
+  snapshot();
+  const item = { color: currentColor, motif: currentMotif };
+
+  if (key === 'center') {
+    slotState['center'] = item;
+  } else if (symmetryMode) {
+    const [ringIdx] = key.split('-').map(Number);
+    const count = rings[ringIdx][1];
+    for (let i = 0; i < count; i++) {
+      slotState[`${ringIdx}-${i}`] = { ...item };
+    }
+  } else {
+    slotState[key] = item;
+  }
+
+  lastPlacedKey = key;
+  drawBase();
+}
+
+function moveSlotData(fromKey, toKey) {
+  if (!slotState[fromKey] || fromKey === toKey) return;
+  snapshot();
+  const sourceItem = slotState[fromKey];
+
+  if (symmetryMode && fromKey !== 'center' && toKey !== 'center') {
+    const [fromRingIdx] = fromKey.split('-').map(Number);
+    const [toRingIdx] = toKey.split('-').map(Number);
+    const countFrom = rings[fromRingIdx][1];
+    const countTo = rings[toRingIdx][1];
+
+    // Clear old ring
+    for (let i = 0; i < countFrom; i++) delete slotState[`${fromRingIdx}-${i}`];
+    // Fill new ring
+    for (let i = 0; i < countTo; i++) slotState[`${toRingIdx}-${i}`] = { ...sourceItem };
+  } else {
+    slotState[toKey] = sourceItem;
+    delete slotState[fromKey];
+  }
+
+  lastPlacedKey = toKey;
+  drawBase();
+  showToast('Moved flower 🌸');
+}
+
+function drawBase() {
+  svg.innerHTML = '';
+
+  // Background guide rings
+  rings.forEach(([r], idx) => {
+    const c = document.createElementNS(NS, 'circle');
+    c.setAttribute('cx', CX); c.setAttribute('cy', CY); c.setAttribute('r', r);
+    c.setAttribute('fill', 'none');
+    c.setAttribute('stroke', 'rgba(255,255,255,0.06)');
+    c.setAttribute('stroke-width', '1');
+    c.setAttribute('stroke-dasharray', '4 4');
+    svg.appendChild(c);
+  });
+
+  // Concentric Rings
+  rings.forEach(([r, count], ringIdx) => {
+    const ringGroup = document.createElementNS(NS, 'g');
+    const dir = ringIdx % 2 === 0 ? 'spin-cw' : 'spin-ccw';
+    ringGroup.setAttribute('class', `ring-group ${ringIdx > 0 ? dir : ''} ${spinning ? '' : 'paused'}`);
+    if (ringIdx > 0) ringGroup.style.animationDuration = `${ringDurations[ringIdx]}s`;
+    ringGroup.style.animationDelay = `${ringIdx * 0.1}s`;
+
+    for (let i = 0; i < count; i++) {
+      const angle = (2 * Math.PI / count) * i - Math.PI / 2;
+      const x = CX + r * Math.cos(angle);
+      const y = CY + r * Math.sin(angle);
+      const deg = angle * 180 / Math.PI + 90;
+      const key = `${ringIdx}-${i}`;
+
+      const g = document.createElementNS(NS, 'g');
+      g.setAttribute('class', 'ring-slot' + (key === lastPlacedKey ? ' just-placed' : ''));
+      g.setAttribute('data-key', key);
+      g.setAttribute('transform', `translate(${x},${y}) rotate(${deg})`);
+      g.setAttribute('tabindex', '0');
+      g.setAttribute('role', 'button');
+      g.setAttribute('aria-label', `Ring ${ringIdx + 1} Slot ${i + 1}`);
+
+      const state = slotState[key];
+      g.innerHTML = state
+        ? motifShapes[state.motif].build(state.color)
+        : `<circle cx="0" cy="-14" r="5" fill="rgba(255,255,255,0.12)" stroke="rgba(255,255,255,0.05)"/>`;
+
+      // Pointer event handler for click & drag
+      g.onpointerdown = (e) => {
+        if (e.button !== 0 && e.pointerType === 'mouse') return;
+        let isDrag = false;
+        const startX = e.clientX, startY = e.clientY;
+
+        const onPointerMove = (moveEv) => {
+          const dist = Math.hypot(moveEv.clientX - startX, moveEv.clientY - startY);
+          if (dist > 8 && slotState[key] && !isDrag) {
+            isDrag = true;
+            dragData = { fromKey: key, item: slotState[key] };
+            g.classList.add('dragging');
+
+            ghostElem = document.createElement('div');
+            ghostElem.className = 'drag-ghost';
+            ghostElem.innerHTML = `<svg width="40" height="40" viewBox="-18 -32 36 36">${motifShapes[dragData.item.motif].build(dragData.item.color)}</svg>`;
+            document.body.appendChild(ghostElem);
+          }
+
+          if (isDrag && ghostElem) {
+            ghostElem.style.left = `${moveEv.clientX}px`;
+            ghostElem.style.top = `${moveEv.clientY}px`;
+          }
+        };
+
+        const onPointerUp = (upEv) => {
+          window.removeEventListener('pointermove', onPointerMove);
+          window.removeEventListener('pointerup', onPointerUp);
+
+          if (isDrag) {
+            if (ghostElem) { ghostElem.remove(); ghostElem = null; }
+            g.classList.remove('dragging');
+
+            // Find target element under drop pointer
+            const targetEl = document.elementFromPoint(upEv.clientX, upEv.clientY);
+            const slotEl = targetEl ? targetEl.closest('[data-key]') : null;
+            if (slotEl) {
+              const toKey = slotEl.getAttribute('data-key');
+              moveSlotData(dragData.fromKey, toKey);
+            }
+            dragData = null;
+          } else {
+            applySlotAction(key);
+          }
+        };
+
+        window.addEventListener('pointermove', onPointerMove);
+        window.addEventListener('pointerup', onPointerUp);
+      };
+
+      g.onkeydown = (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          applySlotAction(key);
+          e.preventDefault();
+        }
+      };
+
+      ringGroup.appendChild(g);
+    }
+    svg.appendChild(ringGroup);
+  });
+
+  // Center Core
+  const coreGroup = document.createElementNS(NS, 'g');
+  coreGroup.setAttribute('data-key', 'center');
+  coreGroup.setAttribute('tabindex', '0');
+  coreGroup.setAttribute('role', 'button');
+  coreGroup.setAttribute('aria-label', 'Center Core Slot');
+  coreGroup.style.cursor = 'pointer';
+
+  const coreState = slotState['center'];
+  const core = document.createElementNS(NS, 'circle');
+  core.setAttribute('cx', CX); core.setAttribute('cy', CY); core.setAttribute('r', 18);
+  core.setAttribute('fill', coreState ? coreState.color : '#4a3020');
+  core.setAttribute('stroke', '#ffc107');
+  core.setAttribute('stroke-width', '1.5');
+
+  const coreDot = document.createElementNS(NS, 'circle');
+  coreDot.setAttribute('cx', CX); coreDot.setAttribute('cy', CY); coreDot.setAttribute('r', 7);
+  coreDot.setAttribute('fill', 'rgba(0,0,0,0.3)');
+
+  coreGroup.appendChild(core);
+  coreGroup.appendChild(coreDot);
+
+  coreGroup.onclick = () => applySlotAction('center');
+  coreGroup.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { applySlotAction('center'); e.preventDefault(); } };
+
+  svg.appendChild(coreGroup);
+}
+
+// Action Button Handlers
+document.getElementById('randomize').onclick = () => {
+  snapshot();
+  slotState = {};
+  rings.forEach(([r, count], ringIdx) => {
+    const color = palette[Math.floor(Math.random() * palette.length)];
+    const motif = Math.floor(Math.random() * motifShapes.length);
+    for (let i = 0; i < count; i++) slotState[`${ringIdx}-${i}`] = { color, motif };
+  });
+  slotState['center'] = { color: palette[Math.floor(Math.random() * palette.length)] };
+  lastPlacedKey = null;
+  drawBase();
+  showToast('Randomized ✨');
+};
+
+document.getElementById('clearAll').onclick = () => {
+  snapshot();
+  slotState = {};
+  lastPlacedKey = null;
+  drawBase();
+  showToast('Cleared 🧹');
+};
+
+document.getElementById('undo').onclick = () => {
+  if (history.length === 0) { showToast('Nothing to undo'); return; }
+  slotState = JSON.parse(history.pop());
+  lastPlacedKey = null;
+  drawBase();
+  showToast('Undone ↩️');
+};
+
+const spinBtn = document.getElementById('toggleSpin');
+spinBtn.onclick = () => {
+  spinning = !spinning;
+  spinBtn.textContent = spinning ? '⏸️ Pause Spin' : '▶️ Resume Spin';
+  spinBtn.classList.toggle('active', !spinning);
+  spinBtn.setAttribute('aria-pressed', (!spinning).toString());
+  document.querySelectorAll('.ring-group').forEach(g => g.classList.toggle('paused', !spinning));
+};
+
+const symBtn = document.getElementById('toggleSymmetry');
+symBtn.onclick = () => {
+  symmetryMode = !symmetryMode;
+  symBtn.textContent = symmetryMode ? '✨ Symmetry: Ring' : '🎯 Symmetry: Off';
+  symBtn.classList.toggle('active', symmetryMode);
+  symBtn.setAttribute('aria-pressed', symmetryMode.toString());
+  showToast(symmetryMode ? 'Ring Symmetry Active' : 'Single Slot Active');
+};
+
+// JSON Save / Load
+document.getElementById('saveJson').onclick = () => {
+  const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(slotState, null, 2));
+  const a = document.createElement('a');
+  a.href = dataStr;
+  a.download = 'pookalam-design.json';
+  a.click();
+  showToast('Saved JSON 💾');
+};
+
+const fileInput = document.getElementById('loadJsonInput');
+document.getElementById('loadJsonBtn').onclick = () => fileInput.click();
+fileInput.onchange = (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (evt) => {
+    try {
+      const loaded = JSON.parse(evt.target.result);
+      if (typeof loaded === 'object') {
+        snapshot();
+        slotState = loaded;
+        drawBase();
+        showToast('Design Loaded 📂');
+      }
+    } catch (err) {
+      showToast('Invalid JSON file ❌');
+    }
+  };
+  reader.readAsText(file);
+  fileInput.value = '';
+};
+
+// Reliable PNG Export (Clone SVG + explicit width/height)
+document.getElementById('exportPng').onclick = () => {
+  const clone = svg.cloneNode(true);
+  clone.setAttribute('width', 480);
+  clone.setAttribute('height', 480);
+  clone.setAttribute('xmlns', NS);
+
+  const svgData = new XMLSerializer().serializeToString(clone);
+  const canvas = document.createElement('canvas');
+  canvas.width = 960; canvas.height = 1000;
+  const ctx = canvas.getContext('2d');
+
+  const gradient = ctx.createRadialGradient(480, 480, 100, 480, 480, 500);
+  gradient.addColorStop(0, '#1e1410');
+  gradient.addColorStop(1, '#0a0604');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  const img = new Image();
+  const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+  const url = URL.createObjectURL(svgBlob);
+
+  img.onload = () => {
+    ctx.drawImage(img, 0, 0, 960, 960);
+    URL.revokeObjectURL(url);
+
+    ctx.fillStyle = '#ff9800';
+    ctx.font = 'bold 24px "Segoe UI", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('🌸 Happy Onam! – Designed with Poovum Codeum', 480, 972);
+
+    const a = document.createElement('a');
+    a.download = 'my-pookalam.png';
+    a.href = canvas.toDataURL('image/png');
+    a.click();
+    showToast('Downloaded PNG ⬇️');
+  };
+  img.onerror = () => showToast('Export failed — try again');
+  img.src = url;
+};
+
+// --- NEW: Load a beautiful default Pookalam on startup ---
+function loadDefaultPookalam() {
+  slotState['center'] = { color: '#fdd835', motif: 0 }; // Bright yellow core
+
+  // A curated design using your awesome new motifs
+  const design = [
+    { motif: 5, color: '#e53935' }, // Ring 0: Red Marigold
+    { motif: 0, color: '#fb8c00' }, // Ring 1: Orange Petals
+    { motif: 6, color: '#fdd835' }, // Ring 2: Yellow Mango Paisley
+    { motif: 4, color: '#d81b60' }, // Ring 3: Pink Lotus
+    { motif: 3, color: '#43a047' }  // Ring 4: Green Leaves (Base)
+  ];
+
+  rings.forEach(([r, count], ringIdx) => {
+    for (let i = 0; i < count; i++) {
+      let slotColor = design[ringIdx].color;
+
+      // Make the outer leaf ring alternate between green and white
+      if (ringIdx === 4 && i % 2 !== 0) {
+        slotColor = '#ffffff';
+      }
+
+      slotState[`${ringIdx}-${i}`] = {
+        motif: design[ringIdx].motif,
+        color: slotColor
+      };
+    }
+  });
+}
+
+// Initial Render
+loadDefaultPookalam();
+drawBase();
+</script>
+</body>
+</html>
